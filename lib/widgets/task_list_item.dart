@@ -1,5 +1,9 @@
+// ignore_for_file: must_be_immutable
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:todo_questlist/data/local_storage.dart';
+import 'package:todo_questlist/main.dart';
 import 'package:todo_questlist/models/task_model.dart';
 
 class TaskListItem extends StatefulWidget {
@@ -13,14 +17,18 @@ class TaskListItem extends StatefulWidget {
 
 class _TaskListItemState extends State<TaskListItem> {
   final TextEditingController _taskNameController = TextEditingController();
+
+  late LocalStorage _localStorage;
   @override
   void initState() {
     super.initState();
-    _taskNameController.text = widget.task.name;
+    _localStorage = locator<LocalStorage>();
   }
 
   @override
   Widget build(BuildContext context) {
+    _taskNameController.text = widget.task.name;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
@@ -33,6 +41,7 @@ class _TaskListItemState extends State<TaskListItem> {
       child: ListTile(
         leading: GestureDetector(
           onTap: () {
+            _localStorage.updateTask(task: widget.task);
             setState(() {
               widget.task.isCompleted = !widget.task.isCompleted;
             });
@@ -51,7 +60,7 @@ class _TaskListItemState extends State<TaskListItem> {
         title: widget.task.isCompleted
             ? Text(
                 widget.task.name,
-                style: TextStyle(
+                style: const TextStyle(
                     decoration: TextDecoration.lineThrough, color: Colors.grey),
               )
             : TextField(
@@ -59,18 +68,19 @@ class _TaskListItemState extends State<TaskListItem> {
                 minLines: 1,
                 maxLines: null,
                 textInputAction: TextInputAction.done,
-                decoration: InputDecoration(border: InputBorder.none),
+                decoration: const InputDecoration(border: InputBorder.none),
                 onSubmitted: (value) {
                   setState(() {
                     if (value.length > 3) {
                       widget.task.name = value;
+                      _localStorage.updateTask(task: widget.task);
                     }
                   });
                 },
               ),
         trailing: Text(
           DateFormat('hh:mm a').format(widget.task.createdAt),
-          style: TextStyle(fontSize: 14, color: Colors.grey),
+          style: const TextStyle(fontSize: 14, color: Colors.grey),
         ),
       ),
     );

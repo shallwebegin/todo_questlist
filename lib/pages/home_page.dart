@@ -1,6 +1,11 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_datetime_picker_plus/flutter_datetime_picker_plus.dart';
+import 'package:todo_questlist/data/local_storage.dart';
+import 'package:todo_questlist/helper/translation_helper.dart';
+import 'package:todo_questlist/main.dart';
 import 'package:todo_questlist/models/task_model.dart';
+import 'package:todo_questlist/widgets/custom_search_delegate.dart';
 import 'package:todo_questlist/widgets/task_list_item.dart';
 
 class HomePage extends StatefulWidget {
@@ -12,11 +17,13 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late List<Task> _allTaskts;
+  late LocalStorage _localStorage;
   @override
   void initState() {
     super.initState();
+    _localStorage = locator<LocalStorage>();
     _allTaskts = <Task>[];
-    _allTaskts.add(Task.create(name: 'Deneme Task', createdAt: DateTime.now()));
+    _getAllTaskFromdb();
   }
 
   @override
@@ -26,21 +33,23 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: GestureDetector(
           onTap: () {
-            _showBottomAddTask(context);
+            _showBottomAddTask();
           },
           child: const Text(
-            'Bugün Neler Yapıcaksın ?',
-          ),
+            'title',
+          ).tr(),
         ),
         centerTitle: false,
         actions: [
           IconButton(
-            onPressed: () {},
+            onPressed: () {
+              _showSearchPage();
+            },
             icon: const Icon(Icons.search),
           ),
           IconButton(
             onPressed: () {
-              _showBottomAddTask(context);
+              _showBottomAddTask();
             },
             icon: const Icon(Icons.add),
           ),
@@ -50,35 +59,36 @@ class _HomePageState extends State<HomePage> {
           ? ListView.builder(
               itemCount: _allTaskts.length,
               itemBuilder: (context, index) {
-                var _oAnkiListeElemani = _allTaskts[index];
+                var oAnkiListeElemani = _allTaskts[index];
                 return Dismissible(
-                  background: const Row(
+                  background: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.delete),
-                      Text('Bu Gorev Silindi'),
-                      SizedBox(
+                      const Icon(Icons.delete),
+                      const Text('remove_task').tr(),
+                      const SizedBox(
                         width: 8,
                       ),
                     ],
                   ),
-                  key: Key(_oAnkiListeElemani.id),
+                  key: Key(oAnkiListeElemani.id),
                   onDismissed: (direction) {
+                    _localStorage.deleteTask(task: oAnkiListeElemani);
                     setState(() {
                       _allTaskts.removeAt(index);
                     });
                   },
-                  child: TaskListItem(task: _oAnkiListeElemani),
+                  child: TaskListItem(task: oAnkiListeElemani),
                 );
               },
             )
-          : const Center(
-              child: Text('Hadi Görev Ekle'),
+          : Center(
+              child: const Text('empty_task_list').tr(),
             ),
     );
   }
 
-  void _showBottomAddTask(BuildContext context) {
+  void _showBottomAddTask() {
     showModalBottomSheet(
       context: context,
       builder: (context) {
@@ -90,20 +100,22 @@ class _HomePageState extends State<HomePage> {
             title: TextField(
               autocorrect: true,
               style: const TextStyle(fontSize: 20),
-              decoration: const InputDecoration(
-                  hintText: 'Görev Nedir?', border: InputBorder.none),
+              decoration: InputDecoration(
+                  hintText: 'add_task'.tr(), border: InputBorder.none),
               onSubmitted: (value) {
                 Navigator.of(context).pop();
                 if (value.length > 3) {
                   DatePicker.showTimePicker(
                     context,
+                    locale: TranslationHelper.getDeviceLanguage(context),
                     showSecondsColumn: false,
-                    onConfirm: (time) {
+                    onConfirm: (time) async {
                       var yeniEklenecekGorev =
                           Task.create(name: value, createdAt: time);
-                      setState(() {
-                        _allTaskts.add(yeniEklenecekGorev);
-                      });
+                      await _localStorage.addTask(task: yeniEklenecekGorev);
+                      _allTaskts.insert(0, yeniEklenecekGorev);
+
+                      setState(() {});
                     },
                   );
                 }
@@ -113,5 +125,16 @@ class _HomePageState extends State<HomePage> {
         );
       },
     );
+  }
+
+  void _getAllTaskFromdb() async {
+    _allTaskts = await _localStorage.getAllTask();
+    setState(() {});
+  }
+
+  void _showSearchPage() async {
+    await showSearch(
+        context: context, delegate: CustomSearchDelegate(allTasks: _allTaskts));
+    _getAllTaskFromdb();
   }
 }
